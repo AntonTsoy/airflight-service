@@ -1,0 +1,22 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a sample REST API in Go.
+  title: My API
+  version: "1.0"
+paths:
+  /hello:
+    get:
+      description: Returns a simple greeting
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Hello, World!
+          schema:
+            type: string
+      summary: Get a greeting
+      tags:
+      - example
+swagger: "2.0"
