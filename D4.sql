@@ -53,7 +53,7 @@ FROM (
 WHERE s.aircraft_code = tf.aircraft_code AND s.seat_no = tf.seat_no;
 
 
-CREATE TABLE prices AS
-SELECT DISTINCT f.flight_no, tf.fare_conditions, tf.amount
+CREATE TABLE delivery_prices AS
+SELECT DISTINCT f.aircraft_code, f.departure_airport, f.arrival_airport, tf.fare_conditions, tf.amount price
 FROM flights f
 INNER JOIN ticket_flights tf ON tf.flight_id = f.flight_id;
