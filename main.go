@@ -1,7 +1,6 @@
-// @title My API
+// @title Airflight Service API
 // @version 1.0
-// @description This is a sample REST API in Go.
-// @host localhost:8080
+// @host localhost:8000
 // @BasePath /
 package main
 
@@ -14,7 +13,7 @@ import (
 
 // @Summary Get a greeting
 // @Description Returns a simple greeting
-// @Tags example
+// @Tags exampled
 // @Produce plain
 // @Success 200 {string} string "Hello, World!"
 // @Router /hello [get]
@@ -23,11 +22,16 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	cfg, err := LoadConfig()
+	if err != nil {
+		panic(err)
+	}
+
 	// Обычные роуты
 	http.HandleFunc("/hello", HelloHandler)
 
 	// Добавляем Swagger UI по адресу /swagger/
 	http.Handle("/swagger/", httpSwagger.WrapHandler)
 
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(cfg.ListenAddr, nil)
 }

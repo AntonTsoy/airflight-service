@@ -6,7 +6,7 @@
         "contact": {},
         "version": "1.0"
     },
-    "host": "localhost:8080",
+    "host": "localhost:8000",
     "basePath": "/",
     "paths": {
         "/hello": {
@@ -16,7 +16,7 @@
                     "text/plain"
                 ],
                 "tags": [
-                    "example"
+                    "exampled"
                 ],
                 "summary": "Get a greeting",
                 "responses": {
