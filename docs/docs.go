@@ -15,23 +15,59 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/hello": {
-            "get": {
-                "description": "Returns a simple greeting",
+        "/airports": {
+            "post": {
+                "description": "Creates a new airport with provided code and name",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
-                    "text/plain"
+                    "application/json"
                 ],
                 "tags": [
-                    "exampled"
+                    "airports"
                 ],
-                "summary": "Get a greeting",
+                "summary": "Create a new airport",
+                "parameters": [
+                    {
+                        "description": "Airport data",
+                        "name": "airport",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.Airport"
+                        }
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": "Hello, World!",
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/main.Airport"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
                         "schema": {
                             "type": "string"
                         }
                     }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.Airport": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         }
@@ -44,8 +80,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8000",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "My API",
-	Description:      "This is a sample REST API in Go.",
+	Title:            "Airflight Service API",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

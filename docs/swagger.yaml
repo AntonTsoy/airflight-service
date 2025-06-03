@@ -1,22 +1,44 @@
 basePath: /
+definitions:
+  main.Airport:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
 host: localhost:8000
 info:
   contact: {}
-  description: This is a sample REST API in Go.
-  title: My API
+  title: Airflight Service API
   version: "1.0"
 paths:
-  /hello:
-    get:
-      description: Returns a simple greeting
+  /airports:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new airport with provided code and name
+      parameters:
+      - description: Airport data
+        in: body
+        name: airport
+        required: true
+        schema:
+          $ref: '#/definitions/main.Airport'
       produces:
-      - text/plain
+      - application/json
       responses:
-        "200":
-          description: Hello, World!
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.Airport'
+        "400":
+          description: Invalid input
           schema:
             type: string
-      summary: Get a greeting
+      summary: Create a new airport
       tags:
-      - exampled
+      - airports
 swagger: "2.0"

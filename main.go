@@ -5,33 +5,56 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	_ "github.com/AntonTsoy/airflight-service/docs" // Импортируем сгенерированную документацию
-	httpSwagger "github.com/swaggo/http-swagger"    // Добавляем http-swagger
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger" // Добавляем http-swagger
 )
 
-// @Summary Get a greeting
-// @Description Returns a simple greeting
-// @Tags exampled
-// @Produce plain
-// @Success 200 {string} string "Hello, World!"
-// @Router /hello [get]
-func HelloHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello, Guys!"))
+type Airport struct {
+	ID   uint   `json:"id" gorm:"primaryKey"`
+	Code string `json:"code" gorm:"uniqueIndex"`
+	Name string `json:"name"`
+}
+
+// addAirport godoc
+// @Summary Create a new airport
+// @Description Creates a new airport with provided code and name
+// @Tags airports
+// @Accept json
+// @Produce json
+// @Param airport body Airport true "Airport data"
+// @Success 201 {object} Airport
+// @Failure 400 {string} string "Invalid input"
+// @Router /airports [post]
+func addAirport(w http.ResponseWriter, r *http.Request) {
+	var airport Airport
+	if err := json.NewDecoder(r.Body).Decode(&airport); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(airport)
 }
 
 func main() {
-	cfg, err := LoadConfig()
+	config, err := LoadConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	// Обычные роуты
-	http.HandleFunc("/hello", HelloHandler)
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Post("/airports", addAirport)
 
-	// Добавляем Swagger UI по адресу /swagger/
-	http.Handle("/swagger/", httpSwagger.WrapHandler)
+	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
-	http.ListenAndServe(cfg.ListenAddr, nil)
+	fmt.Printf("Listening on http://%s/swagger/\n", config.ListenAddr)
+	http.ListenAndServe(config.ListenAddr, r)
 }
