@@ -21,6 +21,14 @@
                     "airports"
                 ],
                 "summary": "Get all airports",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Airport city",
+                        "name": "city",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -29,6 +37,100 @@
                             "items": {
                                 "$ref": "#/definitions/main.Airport"
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/airports/inbound-schedule/{airport_code}": {
+            "get": {
+                "description": "Retrieves the inbound flight schedule for a specified airport",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "airports"
+                ],
+                "summary": "Get inbound schedule for an airport",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Airport code",
+                        "name": "airport_code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.FlightSchedule"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid airport code",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/airports/outbound-schedule/{airport_code}": {
+            "get": {
+                "description": "Retrieves the outbound flight schedule for a specified airport",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "airports"
+                ],
+                "summary": "Get outbound schedule for an airport",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Airport code",
+                        "name": "airport_code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.FlightSchedule"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid airport code",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "500": {
@@ -93,6 +195,23 @@
                     "type": "string"
                 },
                 "timezone": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.FlightSchedule": {
+            "type": "object",
+            "properties": {
+                "day_of_week": {
+                    "type": "string"
+                },
+                "flight_no": {
+                    "type": "string"
+                },
+                "origin_airport": {
+                    "type": "string"
+                },
+                "time_of_arrival": {
                     "type": "string"
                 }
             }

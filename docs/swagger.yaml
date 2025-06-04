@@ -11,6 +11,17 @@ definitions:
       timezone:
         type: string
     type: object
+  main.FlightSchedule:
+    properties:
+      day_of_week:
+        type: string
+      flight_no:
+        type: string
+      origin_airport:
+        type: string
+      time_of_arrival:
+        type: string
+    type: object
 host: localhost:8000
 info:
   contact: {}
@@ -22,6 +33,11 @@ paths:
       consumes:
       - application/json
       description: Retrieve a list of all airports from the database
+      parameters:
+      - description: Airport city
+        in: query
+        name: city
+        type: string
       produces:
       - application/json
       responses:
@@ -38,6 +54,68 @@ paths:
               type: string
             type: object
       summary: Get all airports
+      tags:
+      - airports
+  /airports/inbound-schedule/{airport_code}:
+    get:
+      description: Retrieves the inbound flight schedule for a specified airport
+      parameters:
+      - description: Airport code
+        in: path
+        name: airport_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.FlightSchedule'
+            type: array
+        "400":
+          description: Missing or invalid airport code
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get inbound schedule for an airport
+      tags:
+      - airports
+  /airports/outbound-schedule/{airport_code}:
+    get:
+      description: Retrieves the outbound flight schedule for a specified airport
+      parameters:
+      - description: Airport code
+        in: path
+        name: airport_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.FlightSchedule'
+            type: array
+        "400":
+          description: Missing or invalid airport code
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get outbound schedule for an airport
       tags:
       - airports
   /cities:
