@@ -16,8 +16,8 @@ const docTemplate = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/airports": {
-            "post": {
-                "description": "Creates a new airport with provided code and name",
+            "get": {
+                "description": "Retrieve a list of all airports from the database",
                 "consumes": [
                     "application/json"
                 ],
@@ -27,29 +27,59 @@ const docTemplate = `{
                 "tags": [
                     "airports"
                 ],
-                "summary": "Create a new airport",
-                "parameters": [
-                    {
-                        "description": "Airport data",
-                        "name": "airport",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.Airport"
-                        }
-                    }
-                ],
+                "summary": "Get all airports",
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Airport"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.Airport"
+                            }
                         }
                     },
-                    "400": {
-                        "description": "Invalid input",
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/cities": {
+            "get": {
+                "description": "Retrieve a list of all cities from the database",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cities"
+                ],
+                "summary": "Get all cities",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -60,13 +90,16 @@ const docTemplate = `{
         "main.Airport": {
             "type": "object",
             "properties": {
-                "code": {
+                "airport_code": {
                     "type": "string"
                 },
-                "id": {
-                    "type": "integer"
+                "airport_name": {
+                    "type": "string"
                 },
-                "name": {
+                "city": {
+                    "type": "string"
+                },
+                "timezone": {
                     "type": "string"
                 }
             }

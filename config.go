@@ -8,8 +8,8 @@ import (
 )
 
 type Config struct {
-	ListenAddr   string
-	DatabaseVars string
+	ListenAddr  string
+	DatabaseDSN string
 }
 
 func LoadConfig() (*Config, error) {
@@ -20,8 +20,8 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		ListenAddr:   getString("LISTEN_ADDR"),
-		DatabaseVars: getString("DATABASE_VARS"),
+		ListenAddr:  getString("LISTEN_ADDR"),
+		DatabaseDSN: getString("DATABASE_DSN"),
 	}, nil
 }
 

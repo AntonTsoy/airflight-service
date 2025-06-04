@@ -7,19 +7,31 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	_ "github.com/AntonTsoy/airflight-service/docs" // Импортируем сгенерированную документацию
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger" // Добавляем http-swagger
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-type Airport struct {
-	ID   uint   `json:"id" gorm:"primaryKey"`
-	Code string `json:"code" gorm:"uniqueIndex"`
-	Name string `json:"name"`
+type Aircraft struct {
+	AircraftCode string `json:"id" gorm:"primaryKey"`
+	Model        string `json:"model"`
+	Range        int    `json:"range"`
 }
+
+type Airport struct {
+	AirportCode string `json:"airport_code"`
+	AirportName string `json:"airport_name"`
+	City        string `json:"city"`
+	Timezone    string `json:"timezone"`
+}
+
+var db *gorm.DB
 
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,26 +48,44 @@ func enableCORS(next http.Handler) http.Handler {
 	})
 }
 
-// addAirport godoc
-// @Summary Create a new airport
-// @Description Creates a new airport with provided code and name
-// @Tags airports
+// @Summary Get all cities
+// @Description Retrieve a list of all cities from the database
+// @Tags cities
 // @Accept json
 // @Produce json
-// @Param airport body Airport true "Airport data"
-// @Success 201 {object} Airport
-// @Failure 400 {string} string "Invalid input"
-// @Router /airports [post]
-func addAirport(w http.ResponseWriter, r *http.Request) {
-	var airport Airport
-	if err := json.NewDecoder(r.Body).Decode(&airport); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+// @Success 200 {array} string
+// @Failure 500 {object} map[string]string
+// @Router /cities [get]
+func getCities(w http.ResponseWriter, r *http.Request) {
+	var cities []string
+	result := db.Model(&Airport{}).Distinct("city").Pluck("city", &cities)
+	if result.Error != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(airport)
+	json.NewEncoder(w).Encode(cities)
+}
+
+// @Summary Get all airports
+// @Description Retrieve a list of all airports from the database
+// @Tags airports
+// @Accept json
+// @Produce json
+// @Success 200 {array} Airport
+// @Failure 500 {object} map[string]string
+// @Router /airports [get]
+func getAirports(w http.ResponseWriter, r *http.Request) {
+	var airports []Airport
+	result := db.Distinct().Find(&airports)
+	if result.Error != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(airports)
 }
 
 func main() {
@@ -64,12 +94,18 @@ func main() {
 		panic(err)
 	}
 
+	db, err = gorm.Open(postgres.Open(config.DatabaseDSN), &gorm.Config{})
+	if err != nil {
+		log.Fatal("failed to connect to database:", err)
+	}
+
 	r := chi.NewRouter()
 	// Добавляем CORS middleware перед другими middleware
 	r.Use(enableCORS)
 	r.Use(middleware.Logger)
 
-	r.Post("/airports", addAirport)
+	r.Get("/airports", getAirports)
+	r.Get("/cities", getCities)
 	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
 	fmt.Printf("Listening on http://%s/swagger/\n", config.ListenAddr)

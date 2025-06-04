@@ -2,11 +2,13 @@ basePath: /
 definitions:
   main.Airport:
     properties:
-      code:
+      airport_code:
         type: string
-      id:
-        type: integer
-      name:
+      airport_name:
+        type: string
+      city:
+        type: string
+      timezone:
         type: string
     type: object
 host: localhost:8000
@@ -16,29 +18,49 @@ info:
   version: "1.0"
 paths:
   /airports:
-    post:
+    get:
       consumes:
       - application/json
-      description: Creates a new airport with provided code and name
-      parameters:
-      - description: Airport data
-        in: body
-        name: airport
-        required: true
-        schema:
-          $ref: '#/definitions/main.Airport'
+      description: Retrieve a list of all airports from the database
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
-            $ref: '#/definitions/main.Airport'
-        "400":
-          description: Invalid input
+            items:
+              $ref: '#/definitions/main.Airport'
+            type: array
+        "500":
+          description: Internal Server Error
           schema:
-            type: string
-      summary: Create a new airport
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all airports
       tags:
       - airports
+  /cities:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all cities from the database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all cities
+      tags:
+      - cities
 swagger: "2.0"
