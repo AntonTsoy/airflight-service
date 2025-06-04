@@ -21,6 +21,21 @@ type Airport struct {
 	Name string `json:"name"`
 }
 
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // addAirport godoc
 // @Summary Create a new airport
 // @Description Creates a new airport with provided code and name
@@ -50,9 +65,11 @@ func main() {
 	}
 
 	r := chi.NewRouter()
+	// Добавляем CORS middleware перед другими middleware
+	r.Use(enableCORS)
 	r.Use(middleware.Logger)
-	r.Post("/airports", addAirport)
 
+	r.Post("/airports", addAirport)
 	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
 	fmt.Printf("Listening on http://%s/swagger/\n", config.ListenAddr)
