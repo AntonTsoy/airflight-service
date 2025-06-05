@@ -58,7 +58,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/airports/inbound-schedule/{airport_code}": {
+        "/airports/{airport_code}/inbound-schedule": {
             "get": {
                 "description": "Retrieves the inbound flight schedule for a specified airport",
                 "produces": [
@@ -105,7 +105,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/airports/outbound-schedule/{airport_code}": {
+        "/airports/{airport_code}/outbound-schedule": {
             "get": {
                 "description": "Retrieves the outbound flight schedule for a specified airport",
                 "produces": [
@@ -147,6 +147,62 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/bookings/{guid}": {
+            "put": {
+                "description": "Idempotent booking of flights with a GUID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Book a route",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GUID",
+                        "name": "guid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Booking data",
+                        "name": "booking",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.BookingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Existing or new tickets",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.TicketFlight"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -206,6 +262,23 @@ const docTemplate = `{
                 }
             }
         },
+        "main.BookingRequest": {
+            "type": "object",
+            "properties": {
+                "fare_conditions": {
+                    "type": "string"
+                },
+                "flight_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "passanger": {
+                    "type": "string"
+                }
+            }
+        },
         "main.FlightSchedule": {
             "type": "object",
             "properties": {
@@ -219,6 +292,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "time_of_arrival": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.TicketFlight": {
+            "type": "object",
+            "properties": {
+                "fare_conditions": {
+                    "type": "string"
+                },
+                "flight_id": {
+                    "type": "integer"
+                },
+                "ticket_no": {
                     "type": "string"
                 }
             }

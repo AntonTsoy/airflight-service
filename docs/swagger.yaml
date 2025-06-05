@@ -11,6 +11,17 @@ definitions:
       timezone:
         type: string
     type: object
+  main.BookingRequest:
+    properties:
+      fare_conditions:
+        type: string
+      flight_ids:
+        items:
+          type: integer
+        type: array
+      passanger:
+        type: string
+    type: object
   main.FlightSchedule:
     properties:
       day_of_week:
@@ -20,6 +31,15 @@ definitions:
       origin_airport:
         type: string
       time_of_arrival:
+        type: string
+    type: object
+  main.TicketFlight:
+    properties:
+      fare_conditions:
+        type: string
+      flight_id:
+        type: integer
+      ticket_no:
         type: string
     type: object
 host: localhost:8000
@@ -56,7 +76,7 @@ paths:
       summary: Get all airports
       tags:
       - airports
-  /airports/inbound-schedule/{airport_code}:
+  /airports/{airport_code}/inbound-schedule:
     get:
       description: Retrieves the inbound flight schedule for a specified airport
       parameters:
@@ -87,7 +107,7 @@ paths:
       summary: Get inbound schedule for an airport
       tags:
       - airports
-  /airports/outbound-schedule/{airport_code}:
+  /airports/{airport_code}/outbound-schedule:
     get:
       description: Retrieves the outbound flight schedule for a specified airport
       parameters:
@@ -118,6 +138,43 @@ paths:
       summary: Get outbound schedule for an airport
       tags:
       - airports
+  /bookings/{guid}:
+    put:
+      consumes:
+      - application/json
+      description: Idempotent booking of flights with a GUID
+      parameters:
+      - description: GUID
+        in: path
+        name: guid
+        required: true
+        type: string
+      - description: Booking data
+        in: body
+        name: booking
+        required: true
+        schema:
+          $ref: '#/definitions/main.BookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Existing or new tickets
+          schema:
+            items:
+              $ref: '#/definitions/main.TicketFlight'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Book a route
+      tags:
+      - bookings
   /cities:
     get:
       consumes:
