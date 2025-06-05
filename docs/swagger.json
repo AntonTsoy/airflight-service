@@ -201,6 +201,63 @@
                 }
             }
         },
+        "/bookings/{guid}/check-in/{flight_id}": {
+            "put": {
+                "description": "Assigns a seat for a booked flight using a GUID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Check-in for a flight",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking GUID",
+                        "name": "guid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Flight ID",
+                        "name": "flight_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Boarding pass details",
+                        "schema": {
+                            "$ref": "#/definitions/main.BoardingPass"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Booking or seat not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/cities": {
             "get": {
                 "description": "Retrieve a list of all cities from the database",
@@ -251,6 +308,23 @@
                     "type": "string"
                 },
                 "timezone": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.BoardingPass": {
+            "type": "object",
+            "properties": {
+                "boarding_no": {
+                    "type": "integer"
+                },
+                "flight_id": {
+                    "type": "integer"
+                },
+                "seat_no": {
+                    "type": "string"
+                },
+                "ticket_no": {
                     "type": "string"
                 }
             }

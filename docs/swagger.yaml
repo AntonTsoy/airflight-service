@@ -11,6 +11,17 @@ definitions:
       timezone:
         type: string
     type: object
+  main.BoardingPass:
+    properties:
+      boarding_no:
+        type: integer
+      flight_id:
+        type: integer
+      seat_no:
+        type: string
+      ticket_no:
+        type: string
+    type: object
   main.BookingRequest:
     properties:
       fare_conditions:
@@ -173,6 +184,44 @@ paths:
           schema:
             type: string
       summary: Book a route
+      tags:
+      - bookings
+  /bookings/{guid}/check-in/{flight_id}:
+    put:
+      consumes:
+      - application/json
+      description: Assigns a seat for a booked flight using a GUID
+      parameters:
+      - description: Booking GUID
+        in: path
+        name: guid
+        required: true
+        type: string
+      - description: Flight ID
+        in: path
+        name: flight_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Boarding pass details
+          schema:
+            $ref: '#/definitions/main.BoardingPass'
+        "400":
+          description: Invalid input
+          schema:
+            type: string
+        "404":
+          description: Booking or seat not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Check-in for a flight
       tags:
       - bookings
   /cities:

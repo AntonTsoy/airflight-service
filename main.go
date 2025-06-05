@@ -6,10 +6,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/AntonTsoy/airflight-service/docs" // Импортируем сгенерированную документацию
@@ -23,7 +26,7 @@ import (
 type Aircraft struct {
 	AircraftCode string `json:"id" gorm:"primaryKey"`
 	Model        string `json:"model"`
-	Range        int    `json:"range"`
+	Range        uint   `json:"range"`
 }
 
 type Airport struct {
@@ -49,12 +52,6 @@ type FlightSchedule struct {
 	OriginAirport string `json:"origin_airport"`
 }
 
-type BookingRequest struct {
-	Passanger      string `json:"passanger"`
-	FareConditions string `json:"fare_conditions"`
-	FlightIDs      []uint `json:"flight_ids"`
-}
-
 type Book struct {
 	GUID           string `gorm:"column:guid;primaryKey" json:"guid"`
 	FlightID       uint   `gorm:"column:flight_id" json:"flight_id"`
@@ -67,6 +64,25 @@ type TicketFlight struct {
 	TicketNo       string `gorm:"column:ticket_no;primaryKey" json:"ticket_no"`
 	FlightID       uint   `gorm:"column:flight_id" json:"flight_id"`
 	FareConditions string `gorm:"column:fare_conditions" json:"fare_conditions"`
+}
+
+type Seat struct {
+	AircraftCode   string `gorm:"column:aircraft_code;primaryKey" json:"aircraft_code"`
+	SeatNo         string `gorm:"column:seat_no;primaryKey" json:"seat_no"`
+	FareConditions string `gorm:"column:fare_conditions" json:"fare_conditions"`
+}
+
+type BoardingPass struct {
+	TicketNo   string `gorm:"column:ticket_no;primaryKey" json:"ticket_no"`
+	FlightID   uint   `gorm:"column:flight_id;primaryKey" json:"flight_id"`
+	BoardingNo int    `gorm:"column:boarding_no" json:"boarding_no"`
+	SeatNo     string `gorm:"column:seat_no" json:"seat_no"`
+}
+
+type BookingRequest struct {
+	Passanger      string `json:"passanger"`
+	FareConditions string `json:"fare_conditions"`
+	FlightIDs      []uint `json:"flight_ids"`
 }
 
 var db *gorm.DB
@@ -230,12 +246,13 @@ func getOutboundScheduleAirport(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string}  map[string]string
 // @Router /bookings/{guid} [put]
 func bookRoute(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 	guid := chi.URLParam(r, "guid")
 	if guid == "" {
 		http.Error(w, "Missing guid parameter", http.StatusBadRequest)
 		return
 	}
+
+	defer r.Body.Close()
 	var req BookingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Failed to decode input", http.StatusBadRequest)
@@ -303,6 +320,96 @@ func bookRoute(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tickets)
 }
 
+// @Summary Check-in for a flight
+// @Description Assigns a seat for a booked flight using a GUID
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Param guid path string true "Booking GUID"
+// @Param flight_id path uint true "Flight ID"
+// @Success 200 {object} BoardingPass "Boarding pass details"
+// @Failure 400 {string} ErrorResponse "Invalid input"
+// @Failure 404 {string} ErrorResponse "Booking or seat not found"
+// @Failure 500 {string} ErrorResponse "Internal server error"
+// @Router /bookings/{guid}/check-in/{flight_id} [put]
+func checkIn(w http.ResponseWriter, r *http.Request) {
+	guid := chi.URLParam(r, "guid")
+	flight_id, err := strconv.ParseUint(chi.URLParam(r, "flight_id"), 10, 0)
+	if guid == "" || err != nil {
+		http.Error(w, "GUID and Fligth ID are required", http.StatusBadRequest)
+		return
+	}
+	reqFligthId := uint(flight_id)
+
+	var boardingPass BoardingPass
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("ticket_no IN (?) AND flight_id = ?",
+			tx.Table("books").Select("ticket_no").Where("guid = ? AND flight_id = ?", guid, reqFligthId),
+			reqFligthId).First(&boardingPass).Error; err == nil {
+			return nil // посадочный талон уже существует, возвращаем его
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to check existing boarding pass: %v", err)
+		}
+
+		var book Book
+		if err := tx.Where("guid = ? AND flight_id = ?", guid, reqFligthId).First(&book).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("booking not found for GUID %s and flight ID %d", guid, reqFligthId)
+			}
+			return fmt.Errorf("failed to find booking: %v", err)
+		}
+
+		var seat Seat
+		subQuery := tx.Table("boarding_passes").Select("seat_no").Where("flight_id = ?", reqFligthId)
+		if err := tx.Table("flights f").
+			Select("s.seat_no").
+			Joins("JOIN seats s ON s.aircraft_code = f.aircraft_code").
+			Where("f.flight_id = ? AND s.fare_conditions = ?", reqFligthId, book.FareConditions).
+			Where("s.seat_no NOT IN (?)", subQuery).
+			Limit(1).
+			Find(&seat).Error; err != nil {
+			return fmt.Errorf("failed to find available seat: %v", err)
+		}
+
+		if seat.SeatNo == "" {
+			return fmt.Errorf("no available seats for fare condition %s on flight %d", book.FareConditions, reqFligthId)
+		}
+
+		var maxBoardingNo struct{ Max int }
+		tx.Table("boarding_passes").
+			Select("COALESCE(MAX(boarding_no), 0) as max").
+			Where("flight_id = ?", reqFligthId).
+			Scan(&maxBoardingNo)
+
+		boardingPass = BoardingPass{
+			TicketNo:   book.TicketNo,
+			FlightID:   reqFligthId,
+			BoardingNo: maxBoardingNo.Max + 1,
+			SeatNo:     seat.SeatNo,
+		}
+		if err := tx.Create(&boardingPass).Error; err != nil {
+			return fmt.Errorf("failed to create boarding pass: %v", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		var status = 400
+		if strings.Contains(err.Error(), "booking not found") || strings.Contains(err.Error(), "no available seats") {
+			status = http.StatusNotFound
+		} else {
+			status = http.StatusInternalServerError
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(boardingPass)
+}
+
 func main() {
 	config, err := LoadConfig()
 	if err != nil {
@@ -323,6 +430,7 @@ func main() {
 	r.Get("/airports/{airport_code}/outbound-schedule", getOutboundScheduleAirport)
 	r.Get("/cities", getCities)
 	r.Put("/bookings/{guid}", bookRoute)
+	r.Put("/bookings/{guid}/check-in/{flight_id}", checkIn)
 	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
 	fmt.Printf("Listening on http://%s/swagger/\n", config.ListenAddr)
