@@ -299,6 +299,77 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/routes": {
+            "get": {
+                "description": "Lists routes connecting two points (airport or city) with specified filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "routes"
+                ],
+                "summary": "Get routes between two points",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Departure point (airport code or city)",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Arrival point (airport code or city)",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Departure date (YYYY-MM-DD)",
+                        "name": "departure_date",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Booking class (Economy, Comfort, Business)",
+                        "name": "booking_class",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of connections (0, 1, 2, 3); default 0",
+                        "name": "connections",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of routes",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.Route"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -366,6 +437,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "time_of_arrival": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.Route": {
+            "type": "object",
+            "properties": {
+                "arrival_airport": {
+                    "type": "string"
+                },
+                "departure_airport": {
+                    "type": "string"
+                },
+                "flight_id": {
+                    "type": "integer"
+                },
+                "flight_no": {
+                    "type": "string"
+                },
+                "scheduled_arrival": {
+                    "type": "string"
+                },
+                "scheduled_departure": {
                     "type": "string"
                 }
             }

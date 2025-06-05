@@ -79,6 +79,14 @@ type BoardingPass struct {
 	SeatNo     string `gorm:"column:seat_no" json:"seat_no"`
 }
 
+type Route struct {
+	FlightNo           string    `json:"flight_no"`
+	DepartureAirport   string    `json:"departure_airport"`
+	ArrivalAirport     string    `json:"arrival_airport"`
+	ScheduledDeparture time.Time `json:"scheduled_departure"`
+	ScheduledArrival   time.Time `json:"scheduled_arrival"`
+}
+
 type BookingRequest struct {
 	Passanger      string `json:"passanger"`
 	FareConditions string `json:"fare_conditions"`
@@ -410,6 +418,124 @@ func checkIn(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(boardingPass)
 }
 
+// @Summary Get routes between two points
+// @Description Lists routes connecting two points (airport or city) with specified filters
+// @Tags routes
+// @Produce json
+// @Param from query string true "Departure point (airport code or city)"
+// @Param to query string true "Arrival point (airport code or city)"
+// @Param departure_date query string true "Departure date (YYYY-MM-DD)"
+// @Param booking_class query string true "Booking class (Economy, Comfort, Business)"
+// @Param connections query int false "Number of connections (0, 1, 2, 3); default 0"
+// @Success 200 {array} Route "List of routes"
+// @Failure 400 {string} ErrorResponse "Invalid input"
+// @Failure 500 {string} ErrorResponse "Internal server error"
+// @Router /routes [get]
+func getRoutes(w http.ResponseWriter, r *http.Request) {
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	departureDateStr := r.URL.Query().Get("departure_date")
+	bookingClass := r.URL.Query().Get("booking_class")
+	connectionsStr := r.URL.Query().Get("connections")
+
+	if from == "" || to == "" || departureDateStr == "" || bookingClass == "" {
+		http.Error(w, "From, to, departure_date, and booking_class are required", http.StatusBadRequest)
+		return
+	}
+	validClasses := map[string]bool{"Economy": true, "EconomySec": true, "Comfort": true, "Business": true}
+	if !validClasses[bookingClass] {
+		http.Error(w, "Invalid booking class!", http.StatusBadRequest)
+		return
+	}
+	connections := 0
+	if connectionsStr != "" {
+		if c, err := strconv.Atoi(connectionsStr); err == nil && c >= 0 {
+			connections = c
+		} else {
+			http.Error(w, "Connections must be 0, 1, 2, or greeter", http.StatusBadRequest)
+			return
+		}
+	}
+
+	departureDate, err := time.Parse("2006-01-02", departureDateStr)
+	if err != nil {
+		http.Error(w, "Invalid departure date format. Use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+	nextDate := departureDate.Add(24 * time.Hour)
+
+	var fromAirports, toAirports []Airport
+	if err := db.Where("city = ? OR airport_code = ?", from, from).Find(&fromAirports).Error; err != nil {
+		http.Error(w, "Failed to fetch 'from' airports", http.StatusInternalServerError)
+		return
+	}
+	if err := db.Where("city = ? OR airport_code = ?", to, to).Find(&toAirports).Error; err != nil {
+		http.Error(w, "Failed to fetch 'to' airports", http.StatusInternalServerError)
+		return
+	}
+	if len(fromAirports) == 0 || len(toAirports) == 0 {
+		http.Error(w, "No airports found for given points", http.StatusNotFound)
+		return
+	}
+
+	var routes []Route
+	fromCodes := make([]string, len(fromAirports))
+	for i, airport := range fromAirports {
+		fromCodes[i] = airport.AirportCode
+	}
+	toCodes := make([]string, len(toAirports))
+	for i, airport := range toAirports {
+		toCodes[i] = airport.AirportCode
+	}
+	if connections == 0 {
+		var flights []Flight
+		if err := db.Where("departure_airport IN ? AND arrival_airport IN ? AND scheduled_departure BETWEEN ? AND ?",
+			fromCodes, toCodes, departureDate, nextDate).Find(&flights).Error; err != nil {
+			http.Error(w, "Failed to fetch flights", http.StatusInternalServerError)
+			return
+		}
+		for _, flight := range flights {
+			routes = append(routes, Route{
+				FlightNo:           flight.FlightNo,
+				DepartureAirport:   flight.DepartureAirport,
+				ArrivalAirport:     flight.ArrivalAirport,
+				ScheduledDeparture: flight.ScheduledDeparture,
+				ScheduledArrival:   flight.ScheduledArrival,
+			})
+		}
+	}
+
+	if connections >= 1 {
+		var connectingFlights []Flight
+		if err := db.Raw(`
+            SELECT f1.flight_no, f1.departure_airport, f2.arrival_airport, f1.scheduled_departure, f2.scheduled_arrival
+            FROM flights f1
+            JOIN flights f2 ON f1.arrival_airport = f2.departure_airport
+            WHERE f1.departure_airport IN ? AND f2.arrival_airport IN ? 
+            AND f1.scheduled_departure BETWEEN ? AND ? 
+            AND f2.scheduled_departure > f1.scheduled_arrival
+            AND f2.scheduled_departure < f1.scheduled_arrival + INTERVAL '24 hours'
+            LIMIT 50`,
+			fromCodes, toCodes, departureDate, nextDate).Scan(&connectingFlights).Error; err != nil {
+			http.Error(w, "Failed to fetch flights", http.StatusInternalServerError)
+			return
+		}
+		for _, flight := range connectingFlights {
+			routes = append(routes, Route{
+				FlightNo:           flight.FlightNo,
+				DepartureAirport:   flight.DepartureAirport,
+				ArrivalAirport:     flight.ArrivalAirport,
+				ScheduledDeparture: flight.ScheduledDeparture,
+				ScheduledArrival:   flight.ScheduledArrival,
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(routes)
+}
+
 func main() {
 	config, err := LoadConfig()
 	if err != nil {
@@ -429,6 +555,7 @@ func main() {
 	r.Get("/airports/{airport_code}/inbound-schedule", getInboundScheduleAirport)
 	r.Get("/airports/{airport_code}/outbound-schedule", getOutboundScheduleAirport)
 	r.Get("/cities", getCities)
+	r.Get("/routes", getRoutes)
 	r.Put("/bookings/{guid}", bookRoute)
 	r.Put("/bookings/{guid}/check-in/{flight_id}", checkIn)
 	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))

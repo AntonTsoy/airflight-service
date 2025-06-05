@@ -44,6 +44,21 @@ definitions:
       time_of_arrival:
         type: string
     type: object
+  main.Route:
+    properties:
+      arrival_airport:
+        type: string
+      departure_airport:
+        type: string
+      flight_id:
+        type: integer
+      flight_no:
+        type: string
+      scheduled_arrival:
+        type: string
+      scheduled_departure:
+        type: string
+    type: object
   main.TicketFlight:
     properties:
       fare_conditions:
@@ -247,4 +262,53 @@ paths:
       summary: Get all cities
       tags:
       - cities
+  /routes:
+    get:
+      description: Lists routes connecting two points (airport or city) with specified
+        filters
+      parameters:
+      - description: Departure point (airport code or city)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Arrival point (airport code or city)
+        in: query
+        name: to
+        required: true
+        type: string
+      - description: Departure date (YYYY-MM-DD)
+        in: query
+        name: departure_date
+        required: true
+        type: string
+      - description: Booking class (Economy, Comfort, Business)
+        in: query
+        name: booking_class
+        required: true
+        type: string
+      - description: Number of connections (0, 1, 2, 3); default 0
+        in: query
+        name: connections
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of routes
+          schema:
+            items:
+              $ref: '#/definitions/main.Route'
+            type: array
+        "400":
+          description: Invalid input
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get routes between two points
+      tags:
+      - routes
 swagger: "2.0"
