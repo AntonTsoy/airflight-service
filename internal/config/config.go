@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ type Config struct {
 	DatabaseDSN string
 }
 
-func LoadConfig() (*Config, error) {
+func Load() (*Config, error) {
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println("No .env file found, falling back to OS environment")

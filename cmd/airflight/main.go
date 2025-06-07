@@ -15,12 +15,14 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/AntonTsoy/airflight-service/docs" // Импортируем сгенерированную документацию
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	httpSwagger "github.com/swaggo/http-swagger" // Добавляем http-swagger
+	httpSwagger "github.com/swaggo/http-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	_ "github.com/AntonTsoy/airflight-service/docs"
+	"github.com/AntonTsoy/airflight-service/internal/config"
 )
 
 type Aircraft struct {
@@ -511,11 +513,10 @@ func getRoutes(w http.ResponseWriter, r *http.Request) {
             SELECT f1.flight_no, f1.departure_airport, f2.arrival_airport, f1.scheduled_departure, f2.scheduled_arrival
             FROM flights f1
             JOIN flights f2 ON f1.arrival_airport = f2.departure_airport
-            WHERE f1.departure_airport IN ? AND f2.arrival_airport IN ? 
-            AND f1.scheduled_departure BETWEEN ? AND ? 
+            WHERE f1.departure_airport IN ? AND f2.arrival_airport IN ?
+            AND f1.scheduled_departure BETWEEN ? AND ?
             AND f2.scheduled_departure > f1.scheduled_arrival
-            AND f2.scheduled_departure < f1.scheduled_arrival + INTERVAL '24 hours'
-            LIMIT 50`,
+            AND f2.scheduled_departure < f1.scheduled_arrival + INTERVAL '24 hours'`,
 			fromCodes, toCodes, departureDate, nextDate).Scan(&connectingFlights).Error; err != nil {
 			http.Error(w, "Failed to fetch flights", http.StatusInternalServerError)
 			return
@@ -537,7 +538,7 @@ func getRoutes(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	config, err := LoadConfig()
+	config, err := config.Load()
 	if err != nil {
 		panic(err)
 	}
