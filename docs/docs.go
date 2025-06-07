@@ -450,9 +450,6 @@ const docTemplate = `{
                 "departure_airport": {
                     "type": "string"
                 },
-                "flight_id": {
-                    "type": "integer"
-                },
                 "flight_no": {
                     "type": "string"
                 },
