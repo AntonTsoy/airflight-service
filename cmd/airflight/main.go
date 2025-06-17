@@ -23,6 +23,7 @@ import (
 
 	_ "github.com/AntonTsoy/airflight-service/docs"
 	"github.com/AntonTsoy/airflight-service/internal/config"
+	"github.com/AntonTsoy/airflight-service/internal/models"
 )
 
 var db *gorm.DB
@@ -61,7 +62,7 @@ func generateTicketNo() string {
 // @Router /cities [get]
 func getCities(w http.ResponseWriter, r *http.Request) {
 	var cities []string
-	result := db.Model(&Airport{}).Distinct("city").Pluck("city", &cities)
+	result := db.Model(&models.Airport{}).Distinct("city").Pluck("city", &cities)
 	if result.Error != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -81,7 +82,7 @@ func getCities(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string
 // @Router /airports [get]
 func getAirports(w http.ResponseWriter, r *http.Request) {
-	var airports []Airport
+	var airports []models.Airport
 	result := db.Distinct()
 	city := r.URL.Query().Get("city")
 	if city != "" {
@@ -114,15 +115,15 @@ func getInboundScheduleAirport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var flights []Flight
+	var flights []models.Flight
 	if err := db.Where("arrival_airport = ?", airportCode).Find(&flights).Error; err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	schedules := make([]FlightSchedule, 0, len(flights))
+	schedules := make([]models.FlightSchedule, 0, len(flights))
 	for _, flight := range flights {
-		schedule := FlightSchedule{
+		schedule := models.FlightSchedule{
 			DayOfWeek:     flight.ScheduledArrival.Weekday().String(),
 			TimeOfArrival: flight.ScheduledArrival.Format("15:04"),
 			FlightNo:      flight.FlightNo,
@@ -152,15 +153,15 @@ func getOutboundScheduleAirport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var flights []Flight
+	var flights []models.Flight
 	if err := db.Where("departure_airport = ?", airportCode).Find(&flights).Error; err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	schedules := make([]FlightSchedule, 0, len(flights))
+	schedules := make([]models.FlightSchedule, 0, len(flights))
 	for _, flight := range flights {
-		schedule := FlightSchedule{
+		schedule := models.FlightSchedule{
 			DayOfWeek:     flight.ScheduledDeparture.Weekday().String(),
 			TimeOfArrival: flight.ScheduledDeparture.Format("15:04"),
 			FlightNo:      flight.FlightNo,
@@ -193,7 +194,7 @@ func bookRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer r.Body.Close()
-	var req BookingRequest
+	var req models.BookingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Failed to decode input", http.StatusBadRequest)
 		return
@@ -205,9 +206,9 @@ func bookRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tickets []TicketFlight
+	var tickets []models.TicketFlight
 	err := db.Transaction(func(tx *gorm.DB) error {
-		var existingBooks []Book
+		var existingBooks []models.Book
 		if err := tx.Where("guid = ?", guid).Find(&existingBooks).Error; err != nil {
 			return err
 		}
@@ -225,14 +226,14 @@ func bookRoute(w http.ResponseWriter, r *http.Request) {
 
 		for _, flightID := range req.FlightIDs {
 			ticketNo := generateTicketNo()
-			book := Book{
+			book := models.Book{
 				GUID:           guid,
 				FlightID:       flightID,
 				FareConditions: req.FareConditions,
 				TicketNo:       ticketNo,
 				Passanger:      req.Passanger,
 			}
-			ticketFlight := TicketFlight{
+			ticketFlight := models.TicketFlight{
 				TicketNo:       ticketNo,
 				FlightID:       flightID,
 				FareConditions: req.FareConditions,
@@ -281,7 +282,7 @@ func checkIn(w http.ResponseWriter, r *http.Request) {
 	}
 	reqFligthId := uint(flight_id)
 
-	var boardingPass BoardingPass
+	var boardingPass models.BoardingPass
 	err = db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("ticket_no IN (?) AND flight_id = ?",
 			tx.Table("books").Select("ticket_no").Where("guid = ? AND flight_id = ?", guid, reqFligthId),
@@ -291,7 +292,7 @@ func checkIn(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("failed to check existing boarding pass: %v", err)
 		}
 
-		var book Book
+		var book models.Book
 		if err := tx.Where("guid = ? AND flight_id = ?", guid, reqFligthId).First(&book).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("booking not found for GUID %s and flight ID %d", guid, reqFligthId)
@@ -299,7 +300,7 @@ func checkIn(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("failed to find booking: %v", err)
 		}
 
-		var seat Seat
+		var seat models.Seat
 		subQuery := tx.Table("boarding_passes").Select("seat_no").Where("flight_id = ?", reqFligthId)
 		if err := tx.Table("flights f").
 			Select("s.seat_no").
@@ -321,7 +322,7 @@ func checkIn(w http.ResponseWriter, r *http.Request) {
 			Where("flight_id = ?", reqFligthId).
 			Scan(&maxBoardingNo)
 
-		boardingPass = BoardingPass{
+		boardingPass = models.BoardingPass{
 			TicketNo:   book.TicketNo,
 			FlightID:   reqFligthId,
 			BoardingNo: maxBoardingNo.Max + 1,
@@ -396,7 +397,7 @@ func getRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 	nextDate := departureDate.Add(24 * time.Hour)
 
-	var fromAirports, toAirports []Airport
+	var fromAirports, toAirports []models.Airport
 	if err := db.Where("city = ? OR airport_code = ?", from, from).Find(&fromAirports).Error; err != nil {
 		http.Error(w, "Failed to fetch 'from' airports", http.StatusInternalServerError)
 		return
@@ -410,7 +411,7 @@ func getRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var routes []Route
+	var routes []models.Route
 	fromCodes := make([]string, len(fromAirports))
 	for i, airport := range fromAirports {
 		fromCodes[i] = airport.AirportCode
@@ -420,14 +421,14 @@ func getRoutes(w http.ResponseWriter, r *http.Request) {
 		toCodes[i] = airport.AirportCode
 	}
 	if connections == 0 {
-		var flights []Flight
+		var flights []models.Flight
 		if err := db.Where("departure_airport IN ? AND arrival_airport IN ? AND scheduled_departure BETWEEN ? AND ?",
 			fromCodes, toCodes, departureDate, nextDate).Find(&flights).Error; err != nil {
 			http.Error(w, "Failed to fetch flights", http.StatusInternalServerError)
 			return
 		}
 		for _, flight := range flights {
-			routes = append(routes, Route{
+			routes = append(routes, models.Route{
 				FlightNo:           flight.FlightNo,
 				DepartureAirport:   flight.DepartureAirport,
 				ArrivalAirport:     flight.ArrivalAirport,
@@ -438,7 +439,7 @@ func getRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if connections >= 1 {
-		var connectingFlights []Flight
+		var connectingFlights []models.Flight
 		if err := db.Raw(`
             SELECT f1.flight_no, f1.departure_airport, f2.arrival_airport, f1.scheduled_departure, f2.scheduled_arrival
             FROM flights f1
@@ -452,7 +453,7 @@ func getRoutes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, flight := range connectingFlights {
-			routes = append(routes, Route{
+			routes = append(routes, models.Route{
 				FlightNo:           flight.FlightNo,
 				DepartureAirport:   flight.DepartureAirport,
 				ArrivalAirport:     flight.ArrivalAirport,
